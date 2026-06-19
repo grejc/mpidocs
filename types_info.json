@@ -104,7 +104,89 @@
             },
             {
                 "name": "MPI_BYTE",
-                "desc": "8 bits bin\u00e1rios brutos. Diferente dos outros, o MPI nunca realiza convers\u00f5es autom\u00e1ticas de representa\u00e7\u00e3o de dados (endianness) neste tipo ao cruzar a rede."
+                "desc": "8 bits binários brutos. Diferente dos outros, o MPI nunca realiza conversões automáticas de representação de dados (endianness) neste tipo ao cruzar a rede."
+            }
+        ]
+    },
+    {
+        "category": "Tipos de Largura Fixa (C99)",
+        "types": [
+            {
+                "name": "MPI_INT8_T",
+                "desc": "Tipo inteiro de 8 bits sinalizado correspondente a int8_t da linguagem C."
+            },
+            {
+                "name": "MPI_UINT8_T",
+                "desc": "Tipo inteiro de 8 bits não-sinalizado correspondente a uint8_t da linguagem C."
+            },
+            {
+                "name": "MPI_INT16_T",
+                "desc": "Tipo inteiro de 16 bits sinalizado correspondente a int16_t da linguagem C."
+            },
+            {
+                "name": "MPI_UINT16_T",
+                "desc": "Tipo inteiro de 16 bits não-sinalizado correspondente a uint16_t da linguagem C."
+            },
+            {
+                "name": "MPI_INT32_T",
+                "desc": "Tipo inteiro de 32 bits sinalizado correspondente a int32_t da linguagem C."
+            },
+            {
+                "name": "MPI_UINT32_T",
+                "desc": "Tipo inteiro de 32 bits não-sinalizado correspondente a uint32_t da linguagem C."
+            },
+            {
+                "name": "MPI_INT64_T",
+                "desc": "Tipo inteiro de 64 bits sinalizado correspondente a int64_t da linguagem C."
+            },
+            {
+                "name": "MPI_UINT64_T",
+                "desc": "Tipo inteiro de 64 bits não-sinalizado correspondente a uint64_t da linguagem C."
+            }
+        ]
+    },
+    {
+        "category": "Tipos Booleanos e Complexos (C/C++)",
+        "types": [
+            {
+                "name": "MPI_C_BOOL",
+                "desc": "Tipo booleano da linguagem C correspondente a _Bool (ou bool no C99)."
+            },
+            {
+                "name": "MPI_C_COMPLEX",
+                "desc": "Tipo complexo de precisão simples da linguagem C correspondente a float _Complex."
+            },
+            {
+                "name": "MPI_C_FLOAT_COMPLEX",
+                "desc": "Sinônimo para MPI_C_COMPLEX, representando um tipo complexo de precisão simples em C."
+            },
+            {
+                "name": "MPI_C_DOUBLE_COMPLEX",
+                "desc": "Tipo complexo de dupla precisão da linguagem C correspondente a double _Complex."
+            },
+            {
+                "name": "MPI_C_LONG_DOUBLE_COMPLEX",
+                "desc": "Tipo complexo de precisão estendida da linguagem C correspondente a long double _Complex."
+            },
+            {
+                "name": "MPI_CXX_BOOL",
+                "desc": "Tipo booleano da linguagem C++ correspondente a bool."
+            },
+            {
+                "name": "MPI_CXX_COMPLEX",
+                "desc": "Tipo complexo de precisão simples da linguagem C++ correspondente a std::complex<float>."
+            },
+            {
+                "name": "MPI_CXX_FLOAT_COMPLEX",
+                "desc": "Sinônimo para MPI_CXX_COMPLEX, representando um tipo complexo de precisão simples em C++."
+            },
+            {
+                "name": "MPI_CXX_DOUBLE_COMPLEX",
+                "desc": "Tipo complexo de dupla precisão da linguagem C++ correspondente a std::complex<double>."
+            },
+            {
+                "name": "MPI_CXX_LONG_DOUBLE_COMPLEX",
+                "desc": "Tipo complexo de precisão estendida da linguagem C++ correspondente a std::complex<long double>."
             }
         ]
     },
