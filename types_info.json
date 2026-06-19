@@ -1,0 +1,148 @@
+[
+    {
+        "category": "Handles Opacos B\u00e1sicos",
+        "types": [
+            {
+                "name": "MPI_Comm",
+                "desc": "Representa um comunicador, que define um dom\u00ednio de comunica\u00e7\u00e3o e um grupo de processos. Ex: MPI_COMM_WORLD, MPI_COMM_SELF."
+            },
+            {
+                "name": "MPI_Datatype",
+                "desc": "Representa o layout de mem\u00f3ria dos dados. Pode ser um tipo b\u00e1sico (MPI_INT) ou um tipo derivado complexo contendo gaps/padding."
+            },
+            {
+                "name": "MPI_Request",
+                "desc": "Identifica uma opera\u00e7\u00e3o de comunica\u00e7\u00e3o n\u00e3o bloqueante em andamento (ex: MPI_Isend). \u00c9 usado com MPI_Wait ou MPI_Test para verificar conclus\u00e3o."
+            },
+            {
+                "name": "MPI_Op",
+                "desc": "Representa uma opera\u00e7\u00e3o de redu\u00e7\u00e3o. Pode ser uma pr\u00e9-definida pelo MPI (ex: MPI_SUM) ou customizada pelo usu\u00e1rio via MPI_Op_create."
+            },
+            {
+                "name": "MPI_Group",
+                "desc": "Representa um conjunto ordenado de identificadores de processos (ranks). Usado primariamente para manipula\u00e7\u00f5es locais de conjuntos antes de construir novos comunicadores."
+            },
+            {
+                "name": "MPI_Info",
+                "desc": "Objeto de chave-valor usado para fornecer dicas (hints) de otimiza\u00e7\u00e3o \u00e0 implementa\u00e7\u00e3o do MPI, amplamente utilizado em rotinas de I/O paralelo e RMA."
+            }
+        ]
+    },
+    {
+        "category": "Handles Avan\u00e7ados (I/O e RMA)",
+        "types": [
+            {
+                "name": "MPI_File",
+                "desc": "Descritor de arquivo distribu\u00eddo para opera\u00e7\u00f5es de I/O paralelo (MPI-IO). Retornado por MPI_File_open."
+            },
+            {
+                "name": "MPI_Win",
+                "desc": "Representa uma 'janela' (window) de mem\u00f3ria remota exposta para opera\u00e7\u00f5es One-Sided (RMA - Remote Memory Access) como MPI_Put, MPI_Get e MPI_Accumulate."
+            },
+            {
+                "name": "MPI_Message",
+                "desc": "Usado para o recebimento seguro e thread-safe de mensagens cujo tamanho e metadados foram casados via MPI_Mprobe. Introduzido no MPI-3."
+            },
+            {
+                "name": "MPI_Errhandler",
+                "desc": "Manipulador de erros que dita qual rotina ser\u00e1 invocada quando uma falha cr\u00edtica ocorre em um objeto do tipo Comm, Win ou File."
+            }
+        ]
+    },
+    {
+        "category": "Inteiros Especiais (Tamanhos e Endere\u00e7os)",
+        "types": [
+            {
+                "name": "MPI_Aint",
+                "desc": "Address Integer. Inteiro grande o suficiente para armazenar de forma segura um endere\u00e7o de mem\u00f3ria (ponteiro) na arquitetura alvo (32 ou 64 bits). Essencial para a constru\u00e7\u00e3o de Tipos Derivados como MPI_Type_create_struct."
+            },
+            {
+                "name": "MPI_Offset",
+                "desc": "Inteiro usado para representar deslocamentos (offsets) absolutos em arquivos de disco, suportando com folga arquivos maiores que 2GB."
+            },
+            {
+                "name": "MPI_Count",
+                "desc": "Inteiro de 64-bits introduzido no MPI-3 para suportar a contagem de arrays massivos com mais de 2 bilh\u00f5es de elementos na mem\u00f3ria de um \u00fanico processo."
+            },
+            {
+                "name": "MPI_Fint",
+                "desc": "Tipo inteiro correspondente aos handles MPI quando utilizados via a interface de interoperabilidade C/Fortran."
+            }
+        ]
+    },
+    {
+        "category": "Estruturas de Dados P\u00fablicas",
+        "types": [
+            {
+                "name": "MPI_Status",
+                "desc": "Struct da linguagem C contendo informa\u00e7\u00f5es de metadados sobre a conclus\u00e3o de uma recep\u00e7\u00e3o. Possui no m\u00ednimo 3 campos p\u00fablicos: MPI_SOURCE (rank de origem), MPI_TAG (tag da mensagem recebida) e MPI_ERROR (c\u00f3digo de erro)."
+            }
+        ]
+    },
+    {
+        "category": "Tipos de Dados B\u00e1sicos (C/C++)",
+        "types": [
+            {
+                "name": "MPI_CHAR",
+                "desc": "Equivalente ao char padr\u00e3o da linguagem C (geralmente 1 byte)."
+            },
+            {
+                "name": "MPI_INT",
+                "desc": "Equivalente ao tipo int padr\u00e3o em C."
+            },
+            {
+                "name": "MPI_LONG",
+                "desc": "Equivalente ao tipo long padr\u00e3o em C."
+            },
+            {
+                "name": "MPI_FLOAT",
+                "desc": "Equivalente ao tipo float de ponto flutuante em C."
+            },
+            {
+                "name": "MPI_DOUBLE",
+                "desc": "Equivalente ao tipo double (dupla precis\u00e3o) em C."
+            },
+            {
+                "name": "MPI_BYTE",
+                "desc": "8 bits bin\u00e1rios brutos. Diferente dos outros, o MPI nunca realiza convers\u00f5es autom\u00e1ticas de representa\u00e7\u00e3o de dados (endianness) neste tipo ao cruzar a rede."
+            }
+        ]
+    },
+    {
+        "category": "Opera\u00e7\u00f5es de Redu\u00e7\u00e3o Pr\u00e9-Definidas",
+        "types": [
+            {
+                "name": "MPI_SUM",
+                "desc": "Soma global entre os elementos dos processos participantes."
+            },
+            {
+                "name": "MPI_MAX",
+                "desc": "Retorna o valor m\u00e1ximo do conjunto."
+            },
+            {
+                "name": "MPI_MIN",
+                "desc": "Retorna o valor m\u00ednimo do conjunto."
+            },
+            {
+                "name": "MPI_PROD",
+                "desc": "Calcula o produto global de todos os valores."
+            },
+            {
+                "name": "MPI_LAND",
+                "desc": "Opera\u00e7\u00e3o booleana (L\u00f3gica) AND."
+            },
+            {
+                "name": "MPI_BAND",
+                "desc": "Opera\u00e7\u00e3o Bitwise (bit a bit) AND."
+            },
+            {
+                "name": "MPI_MAXLOC",
+                "desc": "Retorna simultaneamente o valor m\u00e1ximo associado a um rank ou \u00edndice espec\u00edfico (crucial para saber 'quem' possui o m\u00e1ximo)."
+            },
+            {
+                "name": "MPI_MINLOC",
+                "desc": "Retorna simultaneamente o valor m\u00ednimo associado a um rank ou \u00edndice espec\u00edfico."
+            }
+        ]
+    }
+]
