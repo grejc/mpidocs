@@ -809,40 +809,40 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "Endereço inicial do buffer de envio (escolha)."
+        "desc": "Endereço inicial do buffer de envio contendo os valores a serem reduzidos. O buffer deve conter size * recvcount elementos (ponteiro)."
       },
       {
         "name": "recvbuf",
-        "desc": "Endereço inicial do buffer de recepção (escolha)."
+        "desc": "Endereço inicial do buffer de recepção que armazenará o bloco de recvcount elementos do resultado reduzido para este processo (ponteiro)."
       },
       {
         "name": "recvcount",
-        "desc": "Número de elementos do resultado distribuído para cada processo (inteiro)."
+        "desc": "Número de elementos do resultado reduzido que cada processo receberá. O buffer de envio deve ter size * recvcount elementos (inteiro)."
       },
       {
         "name": "datatype",
-        "desc": "Tipo de dado dos elementos (handle)."
+        "desc": "Tipo de dado dos elementos nos buffers de envio e recebimento (handle)."
       },
       {
         "name": "op",
-        "desc": "Operação de redução a ser aplicada (handle)."
+        "desc": "Operação de redução a ser aplicada (ex: MPI_SUM, MPI_MAX, MPI_MIN). Deve ser idêntica em todos os processos (handle)."
       },
       {
         "name": "comm",
-        "desc": "Comunicador (handle)."
+        "desc": "Comunicador contendo o grupo de processos participantes (handle)."
       },
       {
         "name": "info",
-        "desc": "Objeto de informação (handle)."
+        "desc": "Objeto de informação para dicas de otimização da operação persistente (handle). Pode ser MPI_INFO_NULL."
       },
       {
         "name": "request",
-        "desc": "Requisição de comunicação persistente gerada (handle)."
+        "desc": "Requisição de comunicação persistente gerada. Deve ser ativada com MPI_Start e liberada com MPI_Request_free (handle de saída)."
       }
     ],
-    "description": "MPIX_Reduce_scatter_block_init é a variante persistente de MPI_Reduce_scatter_block. Realiza a redução em vetores e distribui o resultado em blocos de tamanhos iguais para todos os processos no comunicador. O objeto de requisição gerado não inicia a operação de imediato, devendo ser executado com MPI_Start.",
-    "application": "Indicado para algoritmos e simulações que necessitam de reduções iterativas seguidas de espalhamento onde todos os processos devem receber um bloco uniforme de dados (como em certos estágios da transformada rápida de Fourier paralela).",
-    "example": "// Declarações\nint sendbuf[4] = {1, 1, 1, 1};\nint recvbuf = 0;\nMPI_Request request;\nMPI_Comm comm = MPI_COMM_WORLD;\n\n// Inicializa Reduce_scatter_block persistente\nint err = MPIX_Reduce_scatter_block_init(sendbuf, &recvbuf, 1, MPI_INT, MPI_SUM, comm, MPI_INFO_NULL, &request);\n\nif (err == MPI_SUCCESS) {\n    MPI_Start(&request);\n    MPI_Wait(&request, MPI_STATUS_IGNORE);\n}\n\nMPI_Request_free(&request);"
+    "description": "MPIX_Reduce_scatter_block_init cria uma requisição persistente para a operação MPI_Reduce_scatter_block. A cada ativação via MPI_Start, realiza uma redução global nos buffers de envio de todos os processos e em seguida distribui blocos de tamanho igual (recvcount) para cada processo. Diferente da versão não persistente, a configuração da operação é feita uma única vez e reutilizada em múltiplas execuções via MPI_Start/MPI_Wait, reduzindo a sobrecarga de inicialização em laços iterativos.",
+    "application": "Indicado para algoritmos iterativos que necessitam de reduções seguidas de espalhamento uniforme, como em loops de iteração de métodos numéricos (ex: Jacobi ou Gauss-Seidel paralelo) onde os mesmos parâmetros de comunicação são reutilizados a cada passo, permitindo que a biblioteca MPI otimize o roteamento e agendamento da comunicação.",
+    "example": "// Declarações\nint rank, size;\nint sendbuf[4] = {1, 1, 1, 1}; // size * recvcount\nint recvbuf = 0;\nMPI_Request request;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Cria a requisição persistente para Reduce_scatter_block\n// sendbuf será reduzido por MPI_SUM e o resultado distribuído em blocos iguais\nerr = MPIX_Reduce_scatter_block_init(sendbuf, &recvbuf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD, MPI_INFO_NULL, &request);\n\nif (err == MPI_SUCCESS) {\n    // Executa a operação múltiplas vezes reutilizando a mesma requisição\n    for (int i = 0; i < 5; i++) {\n        // Atualiza os dados de envio (opcional) antes de cada iteração\n        if (rank == 0) sendbuf[0] += 1;\n\n        err = MPI_Start(&request);\n        if (err == MPI_SUCCESS) {\n            MPI_Wait(&request, MPI_STATUS_IGNORE);\n            // recvbuf contém o bloco reduzido para este processo\n        }\n    }\n}\n\n// Libera a requisição persistente\nerr = MPI_Request_free(&request);\nMPI_Finalize();"
   },
   {
     "name": "MPIX_Reduce_scatter_init",
@@ -851,40 +851,40 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "Endereço inicial do buffer de envio (escolha)."
+        "desc": "Endereço inicial do buffer de envio contendo os valores a serem combinados pela redução. A soma de todos os recvcounts determina o número total de elementos no buffer (ponteiro)."
       },
       {
         "name": "recvbuf",
-        "desc": "Endereço inicial do buffer de recepção (escolha)."
+        "desc": "Endereço inicial do buffer de recepção que armazenará a parte do resultado destinada a este processo. Deve ter espaço para recvcounts[rank] elementos (ponteiro)."
       },
       {
         "name": "recvcounts",
-        "desc": "Matriz de inteiros especificando o número de elementos do resultado distribuído para cada processo."
+        "desc": "Array de inteiros com size elementos, onde recvcounts[i] especifica quantos elementos do resultado reduzido serão enviados ao processo i. A soma deve ser igual ao número total de elementos em sendbuf. O array deve persistir durante toda a vida da requisição (array de entrada)."
       },
       {
         "name": "datatype",
-        "desc": "Tipo de dado dos elementos (handle)."
+        "desc": "Tipo de dado dos elementos nos buffers de envio e recebimento (handle)."
       },
       {
         "name": "op",
-        "desc": "Operação de redução (handle)."
+        "desc": "Operação de redução a ser aplicada (ex: MPI_SUM, MPI_MAX, MPI_MIN). Deve ser a mesma em todos os processos (handle)."
       },
       {
         "name": "comm",
-        "desc": "Comunicador (handle)."
+        "desc": "Comunicador contendo o grupo de processos participantes (handle)."
       },
       {
         "name": "info",
-        "desc": "Objeto de informação (handle)."
+        "desc": "Objeto de informação para dicas de otimização da operação persistente (handle). Pode ser MPI_INFO_NULL."
       },
       {
         "name": "request",
-        "desc": "Requisição de comunicação persistente gerada (handle)."
+        "desc": "Requisição de comunicação persistente gerada. Deve ser ativada com MPI_Start e liberada com MPI_Request_free (handle de saída)."
       }
     ],
-    "description": "Esta rotina constrói uma requisição persistente para a operação MPI_Reduce_scatter, que combina os valores contidos no buffer de entrada através de uma operação e em seguida divide (espalha) os resultados de acordo com tamanhos definidos na matriz recvcounts para cada processo. Requer chamada subsequente a MPI_Start.",
-    "application": "Ideal para processamento iterativo onde os resultados de uma redução global devem ser distribuídos de forma variável e contínua aos processos, especialmente se o particionamento (recvcounts) for invariável durante os ciclos computacionais.",
-    "example": "// Declarações\nint sendbuf[2] = {1, 2};\nint recvbuf[1];\nint recvcounts[2] = {1, 1};\nMPI_Request request;\nMPI_Comm comm = MPI_COMM_WORLD;\n\n// Inicializa Reduce_scatter persistente\nint err = MPIX_Reduce_scatter_init(sendbuf, recvbuf, recvcounts, MPI_INT, MPI_SUM, comm, MPI_INFO_NULL, &request);\n\nif (err == MPI_SUCCESS) {\n    for (int i = 0; i < 5; i++) {\n        MPI_Start(&request);\n        MPI_Wait(&request, MPI_STATUS_IGNORE);\n    }\n}\n\nMPI_Request_free(&request);"
+    "description": "MPIX_Reduce_scatter_init cria uma requisição persistente para a operação MPI_Reduce_scatter. A cada ativação via MPI_Start, combina os valores de todos os processos através da operação de redução op e distribui o resultado em blocos de tamanhos variáveis conforme recvcounts. A natureza persistente elimina a sobrecarga de validação dos parâmetros a cada chamada, sendo ideal para laços iterativos onde a mesma operação é repetida com buffers e contagens constantes.",
+    "application": "Ideal para processamento iterativo onde os resultados de uma redução global devem ser distribuídos de forma variável aos processos, como em cálculos de densidade de carga em simulações de matéria condensada ou em métodos de elementos finitos onde a partição dos resultados varia entre processos mas permanece fixa por múltiplos ciclos.",
+    "example": "// Declarações\nint rank, size;\nint sendbuf[4] = {1, 2, 3, 4}; // Buffer de envio com 4 elementos\nint recvbuf[2];                   // Buffer de recepção (recvcounts[rank] = 2)\nint recvcounts[2] = {2, 2};      // Cada processo recebe 2 elementos\nMPI_Request request;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Cria a requisição persistente para Reduce_scatter com blocos variáveis\nerr = MPIX_Reduce_scatter_init(sendbuf, recvbuf, recvcounts, MPI_INT, MPI_SUM, MPI_COMM_WORLD, MPI_INFO_NULL, &request);\n\nif (err == MPI_SUCCESS) {\n    // Executa a operação múltiplas vezes reutilizando a requisição\n    for (int i = 0; i < 5; i++) {\n        err = MPI_Start(&request);\n        if (err == MPI_SUCCESS) {\n            MPI_Wait(&request, MPI_STATUS_IGNORE);\n            // recvbuf contém a parte do resultado para este processo\n        }\n    }\n}\n\n// Libera a requisição persistente\nerr = MPI_Request_free(&request);\nMPI_Finalize();"
   },
   {
     "name": "MPIX_Scan_init",
@@ -935,11 +935,11 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "Endereço inicial do buffer de envio (escolha, significativo apenas na raiz)."
+        "desc": "Endereço inicial do buffer de envio contendo size * sendcount elementos no processo raiz. Os primeiros sendcount elementos vão para o processo 0, os próximos sendcount para o processo 1, etc. Significativo apenas na raiz (ponteiro)."
       },
       {
         "name": "sendcount",
-        "desc": "Número de elementos a enviar para cada processo (inteiro, significativo apenas na raiz)."
+        "desc": "Número de elementos a enviar para cada processo. O buffer na raiz deve conter ao menos sendcount * size elementos (inteiro, significativo apenas na raiz)."
       },
       {
         "name": "sendtype",
@@ -947,35 +947,35 @@
       },
       {
         "name": "recvbuf",
-        "desc": "Endereço inicial do buffer de recepção (escolha)."
+        "desc": "Endereço inicial do buffer de recepção onde será armazenado o dado recebido. Deve ter capacidade para recvcount elementos do tipo recvtype (ponteiro)."
       },
       {
         "name": "recvcount",
-        "desc": "Número de elementos esperados no buffer de recepção (inteiro)."
+        "desc": "Número de elementos esperados no buffer de recepção. Tipicamente igual a sendcount (inteiro)."
       },
       {
         "name": "recvtype",
-        "desc": "Tipo de dado dos elementos do buffer de recepção (handle)."
+        "desc": "Tipo de dado dos elementos do buffer de recepção. Deve corresponder a sendtype em tamanho e representação (handle)."
       },
       {
         "name": "root",
-        "desc": "Rank do processo raiz (inteiro)."
+        "desc": "Rank do processo raiz que distribuirá os dados para todos os demais processos no comunicador (inteiro)."
       },
       {
         "name": "comm",
-        "desc": "Comunicador (handle)."
+        "desc": "Comunicador contendo o grupo de processos participantes (handle)."
       },
       {
         "name": "info",
-        "desc": "Objeto de informação (handle)."
+        "desc": "Objeto de informação para dicas de otimização da operação persistente (handle). Pode ser MPI_INFO_NULL."
       },
       {
         "name": "request",
-        "desc": "Requisição de comunicação persistente gerada (handle)."
+        "desc": "Requisição de comunicação persistente gerada. Deve ser ativada com MPI_Start e liberada com MPI_Request_free (handle de saída)."
       }
     ],
-    "description": "Configura uma operação MPI_Scatter de forma persistente, na qual blocos de dados de tamanho idêntico são distribuídos do processo raiz para todos os processos no comunicador de destino. O handle da requisição que é retornado deve ser ativado através de MPI_Start em instantes posteriores.",
-    "application": "Indicado para abordagens mestres-escravos em laços temporais, onde o processo mestre distribui partições fixas e simétricas de um vetor global atualizado periodicamente para os workers.",
+    "description": "MPIX_Scatter_init cria uma requisição persistente para a operação MPI_Scatter. A cada ativação via MPI_Start, o processo raiz distribui blocos de dados de tamanho idêntico (sendcount) para todos os processos no comunicador. Diferente de MPI_Scatter, que realiza toda a operação em uma única chamada, MPIX_Scatter_init separa a configuração da execução, permitindo que a implementação MPI pré-calcule rotas e otimize recursos para reutilização em múltiplas iterações. Reduz significativamente a latência em laços que executam o mesmo scatter repetidamente.",
+    "application": "Indicado para abordagens mestre-escravos em laços temporais, onde o processo mestre distribui partições fixas e simétricas de um vetor global atualizado periodicamente para os workers, como em simulações de dinâmica molecular onde as coordenadas das partículas são distribuídas igualmente entre os nós a cada passo de integração.",
     "example": "// Declarações\nint rank = 0; // Simulação de rank para o exemplo isolado.\nint size = 4; // Simulação de size para o exemplo isolado.\nint sendcount = 1;\nint recvcount = 1;\nMPI_Datatype sendtype = MPI_INT;\nMPI_Datatype recvtype = MPI_INT;\nint root = 0;\nMPI_Comm comm = MPI_COMM_WORLD;\nMPI_Info info = MPI_INFO_NULL;\nMPI_Request req;\nint err;\nint iter;\nMPI_Status status; // Necessário para MPI_Wait\n\n// Buffer de envio (apenas na raiz)\nint senddata[4]; // Assumindo size=4 para este exemplo.\n// Buffer de recepção (todos os processos)\nint recvdata;\n\n// Inicializa senddata na raiz (simulado)\nif (rank == root) {\n    senddata[0] = 10;\n    senddata[1] = 20;\n    senddata[2] = 30;\n    senddata[3] = 40;\n}\n\n// Cria uma requisição persistente para a operação de scatter\nerr = MPIX_Scatter_init(senddata, sendcount, sendtype, &recvdata, recvcount, recvtype, root, comm, info, &req);\n\nif (err == MPI_SUCCESS) {\n    // Itera algumas vezes para demonstrar o uso repetido da requisição\n    for (iter = 0; iter < 2; iter++) { \n        // Na raiz, os dados de envio podem ser atualizados antes de cada scatter\n        if (rank == root) {\n            senddata[0] += 1;\n            senddata[1] += 1;\n            senddata[2] += 1;\n            senddata[3] += 1;\n        }\n\n        // Inicia a operação de scatter persistente\n        err = MPI_Start(&req);\n        if (err == MPI_SUCCESS) {\n            // Espera a conclusão da operação\n            err = MPI_Wait(&req, &status);\n            if (err == MPI_SUCCESS) {\n                // Neste ponto, 'recvdata' contém o dado disperso para este processo\n                // Lógica de aplicação com 'recvdata' aqui\n            } else {\n                // Tratamento de erro para MPI_Wait\n            }\n        } else {\n            // Tratamento de erro para MPI_Start\n        }\n    }\n} else {\n    // Tratamento de erro para MPIX_Scatter_init\n}\n\n// Libera a requisição persistente\nif (req != MPI_REQUEST_NULL) { // Verifica se a requisição foi criada antes de tentar liberar\n    int free_err = MPI_Request_free(&req);\n    if (free_err != MPI_SUCCESS) {\n        // Tratamento de erro para MPI_Request_free\n    }\n}\n"
   },
   {
@@ -985,15 +985,15 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "Endereço inicial do buffer de envio (escolha, significativo apenas na raiz)."
+        "desc": "Endereço inicial do buffer de envio no processo raiz. Os dados a enviar são extraídos com base em sendcounts e displs. Significativo apenas na raiz (ponteiro)."
       },
       {
         "name": "sendcounts",
-        "desc": "Matriz de inteiros especificando o número de elementos a enviar para cada processo (significativo apenas na raiz)."
+        "desc": "Array de inteiros com size elementos, onde sendcounts[i] especifica quantos elementos enviar ao processo de rank i. O array deve persistir durante toda a vida da requisição. Significativo apenas na raiz."
       },
       {
         "name": "displs",
-        "desc": "Matriz de deslocamentos inteiros especificando onde cada envio começa em relação ao sendbuf (significativo apenas na raiz)."
+        "desc": "Array de inteiros com size elementos, onde displs[i] especifica o deslocamento (em número de elementos, não em bytes) dentro de sendbuf a partir do qual extrair os dados do processo i. O array deve persistir durante toda a vida da requisição. Significativo apenas na raiz."
       },
       {
         "name": "sendtype",
@@ -1001,35 +1001,35 @@
       },
       {
         "name": "recvbuf",
-        "desc": "Endereço inicial do buffer de recepção (escolha)."
+        "desc": "Endereço inicial do buffer de recepção onde será armazenado o dado recebido. Deve ter recvcount elementos do tipo recvtype (ponteiro)."
       },
       {
         "name": "recvcount",
-        "desc": "Número de elementos esperados no buffer de recepção (inteiro)."
+        "desc": "Número de elementos esperados no buffer de recepção. Cada processo deve especificar quantos elementos espera receber (inteiro)."
       },
       {
         "name": "recvtype",
-        "desc": "Tipo de dado dos elementos do buffer de recepção (handle)."
+        "desc": "Tipo de dado dos elementos do buffer de recepção. Deve corresponder a sendtype (handle)."
       },
       {
         "name": "root",
-        "desc": "Rank do processo raiz (inteiro)."
+        "desc": "Rank do processo raiz que distribuirá os dados (inteiro)."
       },
       {
         "name": "comm",
-        "desc": "Comunicador (handle)."
+        "desc": "Comunicador contendo o grupo de processos participantes (handle)."
       },
       {
         "name": "info",
-        "desc": "Objeto de informação (handle)."
+        "desc": "Objeto de informação para dicas de otimização da operação persistente (handle). Pode ser MPI_INFO_NULL."
       },
       {
         "name": "request",
-        "desc": "Requisição de comunicação persistente gerada (handle)."
+        "desc": "Requisição de comunicação persistente gerada. Deve ser ativada com MPI_Start e liberada com MPI_Request_free (handle de saída)."
       }
     ],
-    "description": "Cria uma requisição de comunicação persistente para MPI_Scatterv. Semelhante a MPI_Scatter_init, porém permite que o processo raiz envie blocos de tamanhos variáveis, especificados pela matriz sendcounts e iniciados conforme os deslocamentos em displs.",
-    "application": "Fundamental para algoritmos em malhas desbalanceadas ou balanceamento de carga irregular, onde as frações de dados enviadas para os processos são de tamanhos desiguais, mas esse particionamento permanece estável ao longo de múltiplos ciclos de iteração.",
+    "description": "MPIX_Scatterv_init cria uma requisição persistente para a operação MPI_Scatterv. Semelhante a MPIX_Scatter_init, porém permite que o processo raiz envie blocos de tamanhos variáveis, especificados pelo array sendcounts e posicionados conforme os deslocamentos em displs. A natureza persistente permite que a implementação MPI otimize internamente o padrão irregular de comunicação para reexecução repetida, eliminando a sobrecarga de validação e configuração em cada iteração. Os arrays sendcounts e displs devem permanecer válidos durante toda a vigência da requisição.",
+    "application": "Fundamental para algoritmos em malhas desbalanceadas ou balanceamento de carga irregular, onde as frações de dados enviadas para os processos são de tamanhos desiguais, mas esse particionamento permanece estável ao longo de múltiplos ciclos de iteração, como em simulações de elementos finitos com refinamento de malha estático entre etapas de checkpoint.",
     "example": "// Declarações\nint rank = 0; // Simulação de rank para o exemplo isolado.\nint size = 2; // Simulação de size para o exemplo isolado.\nint root = 0;\nMPI_Comm comm = MPI_COMM_WORLD;\nMPI_Info info = MPI_INFO_NULL;\nMPI_Request req = MPI_REQUEST_NULL;\nint err = MPI_SUCCESS;\nint iter;\nMPI_Status status; // Necessário para MPI_Wait\n\n// Parâmetros de envio (significativos apenas na raiz)\nint sendcounts[2] = {1, 3}; // Exemplo: P0 recebe 1 int, P1 recebe 3 ints\nint displs[2] = {0, 1};     // Exemplo: P0 começa em 0, P1 começa em 1 do sendbuf\nMPI_Datatype sendtype = MPI_INT;\n\n// Buffer de envio e recepção\nint *sendbuf = NULL;\nint recvcount;\nMPI_Datatype recvtype = MPI_INT;\nint *recvbuf = NULL;\n\n// Determina recvcount para o processo atual usando sendcounts[rank]\nrecvcount = sendcounts[rank];\n\n// Alocação de memória para sendbuf (apenas na raiz)\nif (rank == root) {\n    int total_send_elements = 0;\n    for (int p = 0; p < size; p++) {\n        total_send_elements += sendcounts[p];\n    }\n    sendbuf = (int *)malloc(total_send_elements * sizeof(int));\n    if (sendbuf == NULL) {\n        // Erro na alocação da raiz. Simula falha e define err para evitar prosseguir.\n        err = MPI_ERR_OTHER;\n    } else {\n        // Inicializa sendbuf com dados para o exemplo\n        sendbuf[0] = 100; // Para P0\n        sendbuf[1] = 201; // Para P1 (começando no displs[1])\n        sendbuf[2] = 202; // Para P1\n        sendbuf[3] = 203; // Para P1\n    }\n}\n\n// Alocação de memória para recvbuf em todos os processos\nrecvbuf = (int *)malloc(recvcount * sizeof(int));\nif (recvbuf == NULL) {\n    // Erro na alocação do recvbuf em qualquer processo. Simula falha.\n    err = MPI_ERR_OTHER;\n    if (rank == root && sendbuf != NULL) free(sendbuf); // Libera o que foi alocado se houve erro\n} else if (rank == root && sendbuf == NULL) {\n    // Se a alocação do sendbuf na raiz falhou, o 'err' já foi definido. Não faz nada.\n} else {\n    // Se tudo ok com as alocações, tenta criar a requisição persistente\n    err = MPIX_Scatterv_init(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm, info, &req);\n}\n\n\nif (err == MPI_SUCCESS) {\n    // Itera algumas vezes para demonstrar o uso repetido da requisição\n    for (iter = 0; iter < 2; iter++) { \n        // Na raiz, os dados de envio podem ser atualizados antes de cada scatterv\n        if (rank == root && sendbuf != NULL) {\n            sendbuf[0] += 1;\n            // Atualiza outros elementos do sendbuf conforme necessário\n            for (int k = 1; k < sendcounts[1] + displs[1]; k++) { // Atualiza dados para P1\n                 sendbuf[k] += 1;\n            }\n        }\n\n        // Inicia a operação de scatterv persistente\n        err = MPI_Start(&req);\n        if (err == MPI_SUCCESS) {\n            // Espera a conclusão da operação\n            err = MPI_Wait(&req, &status);\n            if (err == MPI_SUCCESS) {\n                // Neste ponto, 'recvbuf' contém os dados dispersos para este processo.\n                // Lógica de aplicação com 'recvbuf' aqui\n            } else {\n                // Tratamento de erro para MPI_Wait\n            }\n        }\n    } else {\n        // Tratamento de erro para MPI_Start\n    }\n} else {\n    // Tratamento de erro para MPIX_Scatterv_init ou alocação de memória\n}\n\n// Libera a requisição persistente\nif (req != MPI_REQUEST_NULL) { // Verifica se a requisição foi criada antes de tentar liberar\n    int free_err = MPI_Request_free(&req);\n    if (free_err != MPI_SUCCESS) {\n        // Tratamento de erro para MPI_Request_free\n    }\n}\n\n// Liberação de memória alocada\nif (rank == root && sendbuf != NULL) {\n    free(sendbuf);\n}\nif (recvbuf != NULL) {\n    free(recvbuf);\n}\n"
   },
   {
@@ -6699,33 +6699,37 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço inicial do buffer de envio (escolha)"
+        "desc": "Endereço inicial do buffer de envio no processo atual. Todos os processos contribuem com dados para a redução (ponteiro de entrada)."
       },
       {
         "name": "recvcounts",
-        "desc": "array de inteiros não negativos especificando o número de elementos no resultado distribuído para cada processo. Este array deve ser idêntico em todos os processos chamadores."
-      },
-      {
-        "name": "op",
-        "desc": "operação (handle)"
-      },
-      {
-        "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Array de inteiros com size elementos, onde recvcounts[i] especifica o número de elementos do resultado reduzido a serem recebidos pelo processo i. O array deve ser idêntico em todos os processos (array de entrada)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço inicial do buffer de recebimento (escolha)"
+        "desc": "Endereço inicial do buffer de recebimento onde será armazenada a parte do resultado destinada a este processo. Deve ter espaço para recvcounts[rank] elementos (ponteiro de saída)."
+      },
+      {
+        "name": "datatype",
+        "desc": "Tipo de dados dos elementos nos buffers de envio e recebimento (handle)."
+      },
+      {
+        "name": "op",
+        "desc": "Operação de redução a ser aplicada (por exemplo, MPI_SUM, MPI_MAX, MPI_MIN). Deve ser a mesma em todos os processos (handle)."
+      },
+      {
+        "name": "comm",
+        "desc": "Comunicador que contém o grupo de processos participantes (handle)."
       },
       {
         "name": "request",
-        "desc": "requisição de comunicação (handle)"
+        "desc": "Handle da requisição MPI que representa a operação assíncrona. Deve ser completada com MPI_Wait ou MPI_Test (handle de saída)."
       }
     ],
-    "description": "MPI_Ireduce_scatter combina valores e espalha os resultados em um comunicador de forma não bloqueante. É a versão não bloqueante de MPI_Reduce_scatter. Todos os processos devem fornecer o mesmo array recvcounts, datatype e operação op.",
-    "application": "Utilizado em algoritmos paralelos que requerem uma redução global seguida pela distribuição dos resultados parciais, onde a sobreposição de comunicação e computação é desejada.",
-    "example": "// Declarações\nint sendbuf[4] = {1, 1, 1, 1};\nint recvbuf = 0;\nint recvcounts[1] = {1};\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nMPI_Comm comm = MPI_COMM_WORLD;\nMPI_Request request;\nMPI_Status status;\n\n// Reduz e espalha os resultados\nint err = MPI_Ireduce_scatter(sendbuf, &recvbuf, recvcounts, datatype, op, comm, &request);\n\nif (err == MPI_SUCCESS) {\n    MPI_Wait(&request, &status);\n}"
-  },
+    "description": "MPI_Ireduce_scatter é a versão não bloqueante de MPI_Reduce_scatter. Inicia a combinação dos valores de todos os processos através de uma operação de redução, seguida pela distribuição dos resultados de acordo com recvcounts, e retorna imediatamente. A requisição retornada deve ser completada com MPI_Wait ou MPI_Test para garantir que o buffer de recebimento contenha os dados finais. Todos os processos devem fornecer o mesmo array recvcounts, datatype e op. Esta função permite sobrepor a comunicação da redução com computação local.",
+    "application": "Utilizado em algoritmos iterativos de álgebra linear paralela onde se deseja sobrepor a redução parcial com computação local, como em solvers de gradiente conjugado (CG) ou decomposição LU paralela, onde as fases de redução podem ser iniciadas e finalizadas enquanto outro trabalho é realizado.",
+    "example": "// Declarações\nint rank, size;\nint sendbuf[4] = {1, 1, 1, 1}; // Buffer de envio com 4 elementos\nint recvbuf;                      // Buffer de recebimento individual\nint recvcounts[2] = {2, 2};       // Cada processo recebe 2 elementos\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nMPI_Request request;\nMPI_Status status;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Inicia o reduce-scatter não bloqueante\n// Todos os processos contribuem com sendbuf[4] = {1,1,1,1}\n// Redução MPI_SUM: resultado = {1+1, 1+1, 1+1, 1+1} = {2, 2, 2, 2}\n// Scatter: P0 recebe {2,2}, P1 recebe {2,2}\nerr = MPI_Ireduce_scatter(sendbuf, &recvbuf, recvcounts, datatype, op, MPI_COMM_WORLD, &request);\n\nif (err == MPI_SUCCESS) {\n    // Sobreposição: realizar computação local enquanto a redução ocorre\n\n    // Aguarda a conclusão\n    err = MPI_Wait(&request, &status);\n\n    if (err == MPI_SUCCESS) {\n        // recvbuf contém a parte do resultado para este processo\n        // printf(\"Processo %d recebeu: %d\\n\", rank, recvbuf);\n    }\n}\n\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Ireduce_scatter_block",
     "short_desc": "Combina valores e espalha os resultados em blocos de tamanho fixo de forma não bloqueante.",
@@ -6733,37 +6737,37 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço inicial do buffer de envio (escolha)"
-      },
-      {
-        "name": "recvcount",
-        "desc": "contagem de elementos por bloco (inteiro não negativo)"
-      },
-      {
-        "name": "datatype",
-        "desc": "tipo de dado dos elementos dos buffers de envio e recebimento (handle)"
-      },
-      {
-        "name": "op",
-        "desc": "operação (handle)"
-      },
-      {
-        "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Endereço inicial do buffer de envio contendo os valores a serem combinados. Deve conter size * recvcount elementos do tipo datatype (ponteiro de entrada)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço inicial do buffer de recebimento (escolha)"
+        "desc": "Endereço inicial do buffer de recebimento que armazenará o bloco de recvcount elementos do resultado reduzido para este processo (ponteiro de saída)."
+      },
+      {
+        "name": "recvcount",
+        "desc": "Número de elementos que cada processo receberá como resultado. O buffer de envio deve conter size * recvcount elementos (inteiro não negativo)."
+      },
+      {
+        "name": "datatype",
+        "desc": "Tipo de dados dos elementos nos buffers de envio e recebimento (handle)."
+      },
+      {
+        "name": "op",
+        "desc": "Operação de redução a ser aplicada (por exemplo, MPI_SUM, MPI_MAX, MPI_MIN). Deve ser a mesma em todos os processos (handle)."
+      },
+      {
+        "name": "comm",
+        "desc": "Comunicador que contém o grupo de processos participantes (handle)."
       },
       {
         "name": "request",
-        "desc": "requisição de comunicação (handle)"
+        "desc": "Handle da requisição MPI que representa a operação assíncrona. Deve ser completada com MPI_Wait ou MPI_Test (handle de saída)."
       }
     ],
-    "description": "MPI_Ireduce_scatter_block é a variante não bloqueante de MPI_Reduce_scatter_block. Ela combina valores de todos os processos e distribui blocos de tamanho igual para cada processo.",
-    "application": "Útil quando o resultado da redução deve ser distribuído uniformemente entre os processos de forma assíncrona.",
-    "example": "// Declarações\nint sendbuf[4] = {2, 2, 2, 2};\nint recvbuf = 0;\nint recvcount = 1;\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nMPI_Comm comm = MPI_COMM_WORLD;\nMPI_Request request;\nMPI_Status status;\n\n// Reduz e espalha blocos iguais\nint err = MPI_Ireduce_scatter_block(sendbuf, &recvbuf, recvcount, datatype, op, comm, &request);\n\nif (err == MPI_SUCCESS) {\n    MPI_Wait(&request, &status);\n}"
-  },
+    "description": "MPI_Ireduce_scatter_block é a versão não bloqueante de MPI_Reduce_scatter_block. Inicia a combinação dos valores de todos os processos através de uma operação de redução e a subsequente distribuição de blocos de tamanho igual para cada processo, retornando imediatamente. A requisição retornada deve ser completada com MPI_Wait ou MPI_Test. Equivale funcionalmente a MPI_Ireduce_scatter com recvcounts[i] = recvcount para todo i, mas pode ter implementação mais otimizada.",
+    "application": "Útil em algoritmos onde o resultado de uma redução deve ser distribuído uniformemente entre todos os processos de forma assíncrona, como em etapas de normalização em simulações de Monte Carlo paralelas ou agregação de gradientes em treinamento distribuído de machine learning com tamanhos de bloco fixos.",
+    "example": "// Declarações\nint rank, size;\nint sendbuf[4] = {2, 2, 2, 2}; // size * recvcount = 2 * 2\nint recvbuf[2];                   // recvcount = 2\nint recvcount = 2;\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nMPI_Request request;\nMPI_Status status;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Inicia reduce-scatter-block não bloqueante\n// Redução MPI_SUM: {2+2, 2+2, 2+2, 2+2} = {4, 4, 4, 4}\n// Scatter: cada processo recebe 2 elementos\n// P0: {4,4}, P1: {4,4}\nerr = MPI_Ireduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, MPI_COMM_WORLD, &request);\n\nif (err == MPI_SUCCESS) {\n    // Sobreposição: executar computação local enquanto a redução ocorre\n\n    // Aguarda a conclusão\n    err = MPI_Wait(&request, &status);\n\n    if (err == MPI_SUCCESS) {\n        // recvbuf contém o bloco de dados reduzidos para este processo\n        // printf(\"Processo %d recebeu: %d, %d\\n\", rank, recvbuf[0], recvbuf[1]);\n    }\n}\n\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Irsend",
     "short_desc": "Inicia um envio pronto (ready send) não bloqueante.",
@@ -6853,45 +6857,45 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço do buffer de envio (escolha)"
+        "desc": "Endereço inicial do buffer de envio no processo raiz. Cada segmento de sendcount elementos será enviado a um processo destino. Significativo apenas na raiz (ponteiro)."
       },
       {
         "name": "sendcount",
-        "desc": "número de elementos enviados para cada processo (inteiro não negativo)"
+        "desc": "Número de elementos a enviar do buffer de envio para CADA processo. O buffer total na raiz deve conter ao menos sendcount * size elementos (inteiro não negativo)."
       },
       {
         "name": "sendtype",
-        "desc": "tipo de dado dos elementos do buffer de envio (handle)"
-      },
-      {
-        "name": "recvcount",
-        "desc": "número de elementos no buffer de recebimento (inteiro não negativo)"
-      },
-      {
-        "name": "recvtype",
-        "desc": "tipo de dado dos elementos do buffer de recebimento (handle)"
-      },
-      {
-        "name": "root",
-        "desc": "rank do processo emissor (inteiro)"
-      },
-      {
-        "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Tipo de dados dos elementos do buffer de envio (handle)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço do buffer de recebimento (escolha)"
+        "desc": "Endereço inicial do buffer de recebimento onde serão armazenados os dados recebidos (ponteiro)."
+      },
+      {
+        "name": "recvcount",
+        "desc": "Número de elementos a serem recebidos por este processo. Deve corresponder a sendcount (inteiro não negativo)."
+      },
+      {
+        "name": "recvtype",
+        "desc": "Tipo de dados dos elementos do buffer de recebimento. Deve corresponder a sendtype (handle)."
+      },
+      {
+        "name": "root",
+        "desc": "Rank do processo que distribuirá os dados (inteiro)."
+      },
+      {
+        "name": "comm",
+        "desc": "Comunicador contendo o grupo de processos participantes (handle)."
       },
       {
         "name": "request",
-        "desc": "requisição de comunicação (handle)"
+        "desc": "Handle da requisição MPI que representa a operação assíncrona em andamento. Deve ser completada com MPI_Wait ou MPI_Test (handle de saída)."
       }
     ],
-    "description": "MPI_Iscatter distribui fatias de um buffer do processo raiz para todos os processos no comunicador sem bloquear.",
-    "application": "Distribuição de tarefas ou dados entre processos de forma assíncrona.",
-    "example": "// Declarações\nint sendbuf[4] = {1, 2, 3, 4};\nint recvbuf = 0;\nint count = 1;\nMPI_Datatype type = MPI_INT;\nint root = 0;\nMPI_Comm comm = MPI_COMM_WORLD;\nMPI_Request request;\nMPI_Status status;\n\n// Distribui dados não-bloqueantemente\nint err = MPI_Iscatter(sendbuf, count, type, &recvbuf, count, type, root, comm, &request);\n\nif (err == MPI_SUCCESS) {\n    MPI_Wait(&request, &status);\n}"
-  },
+    "description": "MPI_Iscatter é a versão não bloqueante de MPI_Scatter. Inicia a distribuição de dados do processo raiz para todos os processos do comunicador e retorna imediatamente, sem aguardar a conclusão da operação. A requisição retornada deve ser completada com MPI_Wait, MPI_Test ou similar para garantir que os dados no buffer de recebimento estejam prontos para uso. Todos os processos no comunicador devem chamar MPI_Iscatter com os mesmos parâmetros.",
+    "application": "Distribuição assíncrona de dados onde a computação local pode ser sobreposta com a comunicação, como em algoritmos de pipeline onde o processo raiz prepara o próximo lote de dados enquanto os trabalhadores processam o lote atual.",
+    "example": "// Declarações\nint rank, size;\nint *sendbuf = NULL; // Buffer de envio (apenas na raiz)\nint recvbuf;         // Buffer de recebimento individual\nint root = 0;\nMPI_Request request;\nMPI_Status status;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho do comunicador\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// O processo raiz aloca e inicializa o buffer de envio\nif (rank == root) {\n    sendbuf = (int *)malloc(size * sizeof(int));\n    for (int i = 0; i < size; i++) {\n        sendbuf[i] = (i + 1) * 10;\n    }\n}\n\n// Inicia o scatter não bloqueante\n// A operação ocorre em segundo plano enquanto o processo pode computar\nerr = MPI_Iscatter(sendbuf, 1, MPI_INT, &recvbuf, 1, MPI_INT,\n                   root, MPI_COMM_WORLD, &request);\n\nif (err == MPI_SUCCESS) {\n    // Sobreposição: é possível realizar computação local aqui\n    // enquanto a comunicação ocorre em segundo plano\n    // Ex: printf(\"Processo %d realizando computação durante Iscatter...\\n\", rank);\n\n    // Aguarda a conclusão do scatter\n    err = MPI_Wait(&request, &status);\n\n    if (err == MPI_SUCCESS) {\n        // recvbuf agora contém o dado recebido do processo raiz\n        // printf(\"Processo %d recebeu: %d\\n\", rank, recvbuf);\n    }\n}\n\nif (rank == root && sendbuf != NULL) free(sendbuf);\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Iscatterv",
     "short_desc": "Espalha um buffer em partes variadas para todos os processos de forma não bloqueante.",
@@ -6899,49 +6903,49 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço do buffer de envio (escolha)"
+        "desc": "Endereço inicial do buffer de envio no processo raiz. Combinado com sendcounts e displs define os segmentos a distribuir. Significativo apenas na raiz (ponteiro)."
       },
       {
         "name": "sendcounts",
-        "desc": "array de inteiros especificando o número de elementos a enviar para cada rank."
+        "desc": "Array de inteiros com size elementos, onde sendcounts[i] especifica quantos elementos serão enviados ao processo de rank i. Array significativo apenas na raiz."
       },
       {
         "name": "displs",
-        "desc": "array de inteiros especificando o deslocamento relativo ao sendbuf para os dados de cada rank."
+        "desc": "Array de inteiros com size elementos, onde displs[i] especifica o deslocamento (em número de elementos) dentro de sendbuf para extrair os dados do processo i. Array significativo apenas na raiz."
       },
       {
         "name": "sendtype",
-        "desc": "tipo de dado dos elementos do buffer de envio (handle)"
-      },
-      {
-        "name": "recvcount",
-        "desc": "número de elementos no buffer de recebimento (inteiro não negativo)"
-      },
-      {
-        "name": "recvtype",
-        "desc": "tipo de dado dos elementos do buffer de recebimento (handle)"
-      },
-      {
-        "name": "root",
-        "desc": "rank do processo emissor (inteiro)"
-      },
-      {
-        "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Tipo de dados dos elementos do buffer de envio (handle)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço do buffer de recebimento (escolha)"
+        "desc": "Endereço inicial do buffer de recebimento onde serão armazenados os dados recebidos deste processo (ponteiro)."
+      },
+      {
+        "name": "recvcount",
+        "desc": "Número de elementos a serem recebidos por este processo. Deve corresponder a sendcounts[rank] (inteiro não negativo)."
+      },
+      {
+        "name": "recvtype",
+        "desc": "Tipo de dados dos elementos do buffer de recebimento. Deve corresponder a sendtype (handle)."
+      },
+      {
+        "name": "root",
+        "desc": "Rank do processo que distribuirá os dados (inteiro)."
+      },
+      {
+        "name": "comm",
+        "desc": "Comunicador contendo o grupo de processos participantes (handle)."
       },
       {
         "name": "request",
-        "desc": "requisição de comunicação (handle)"
+        "desc": "Handle da requisição MPI que representa a operação assíncrona. Deve ser completada com MPI_Wait ou MPI_Test (handle de saída)."
       }
     ],
-    "description": "MPI_Iscatterv permite distribuir fatias de tamanhos variáveis de um buffer para diferentes processos de forma não bloqueante.",
-    "application": "Distribuição de dados irregulares entre processos.",
-    "example": "// Declarações\nint sendbuf[4] = {1, 2, 3, 4};\nint sendcounts[2] = {1, 3};\nint displs[2] = {0, 1};\nint recvbuf[3] = {0, 0, 0};\nint recvcount = 3;\nMPI_Datatype type = MPI_INT;\nint root = 0;\nMPI_Comm comm = MPI_COMM_WORLD;\nMPI_Request request;\nMPI_Status status;\n\n// Distribuição variável\nint err = MPI_Iscatterv(sendbuf, sendcounts, displs, type, recvbuf, recvcount, type, root, comm, &request);\n\nif (err == MPI_SUCCESS) {\n    MPI_Wait(&request, &status);\n}"
-  },
+    "description": "MPI_Iscatterv é a versão não bloqueante de MPI_Scatterv. Inicia a distribuição de quantidades variáveis de dados do processo raiz para cada processo no comunicador e retorna imediatamente, permitindo sobreposição de comunicação com computação. A requisição deve ser completada com MPI_Wait ou MPI_Test para garantir que os dados estejam disponíveis. Todos os processos devem chamar MPI_Iscatterv com os mesmos sendcounts, displs, sendtype, recvcount, recvtype, root e comm.",
+    "application": "Distribuição assíncrona de cargas irregulares, onde diferentes processos recebem quantidades distintas de dados e a comunicação pode ser sobreposta com preparação do próximo conjunto de dados ou com computação local.",
+    "example": "// Declarações\nint rank, size;\nint *sendbuf = NULL;          // Buffer de envio (apenas na raiz)\nint *recvbuf = NULL;          // Buffer de recebimento individual\nint *sendcounts = NULL;       // Contagens para cada processo\nint *displs = NULL;           // Deslocamentos para cada processo\nint root = 0;\nMPI_Request request;\nMPI_Status status;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Apenas a raiz prepara sendcounts, displs e sendbuf\nif (rank == root) {\n    sendcounts = (int *)malloc(size * sizeof(int));\n    displs = (int *)malloc(size * sizeof(int));\n\n    int total = 0;\n    for (int i = 0; i < size; i++) {\n        sendcounts[i] = (i % 3) + 1; // Tamanhos variados\n        displs[i] = total;\n        total += sendcounts[i];\n    }\n\n    sendbuf = (int *)malloc(total * sizeof(int));\n    for (int i = 0; i < total; i++) {\n        sendbuf[i] = (i + 1) * 10;\n    }\n}\n\n// Cada processo precisa saber seu recvcount (na prática, difunda sendcounts primeiro)\nint my_count = 1; // Placeholder - use MPI_Scatter de sendcounts para obter o valor real\n\nrecvbuf = (int *)malloc(my_count * sizeof(int));\n\n// Inicia o scatterv não bloqueante\nerr = MPI_Iscatterv(sendbuf, sendcounts, displs, MPI_INT,\n                    recvbuf, my_count, MPI_INT,\n                    root, MPI_COMM_WORLD, &request);\n\nif (err == MPI_SUCCESS) {\n    // Sobreposição: computação local enquanto a comunicação ocorre\n\n    // Aguarda a conclusão\n    err = MPI_Wait(&request, &status);\n\n    if (err == MPI_SUCCESS) {\n        // recvbuf contém os dados recebidos\n        // printf(\"Processo %d recebeu %d elementos\\n\", rank, my_count);\n    }\n}\n\nif (rank == root) { free(sendbuf); free(sendcounts); free(displs); }\nfree(recvbuf);\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Isend",
     "short_desc": "Inicia um envio não bloqueante.",
@@ -7929,33 +7933,33 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço inicial do buffer de envio (entrada)"
+        "desc": "Endereço inicial do buffer de envio contendo os valores que serão combinados pela operação de redução. Todos os processos contribuem com este buffer (ponteiro de entrada)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço inicial do buffer de recebimento (saída)"
+        "desc": "Endereço inicial do buffer de recebimento que armazenará a parte do resultado reduzido destinada a este processo. O tamanho deve ser suficiente para recvcounts[rank] elementos (ponteiro de saída)."
       },
       {
         "name": "recvcounts",
-        "desc": "array especificando o número de elementos do resultado distribuídos para cada processo"
+        "desc": "Array de inteiros com size elementos, onde recvcounts[i] especifica o número de elementos do resultado reduzido que serão enviados ao processo de rank i. A soma de recvcounts deve ser igual ao número total de elementos em sendbuf (array de entrada)."
       },
       {
         "name": "datatype",
-        "desc": "tipo de dado dos elementos (handle)"
+        "desc": "Tipo de dados dos elementos nos buffers de envio e recebimento (handle)."
       },
       {
         "name": "op",
-        "desc": "operação (handle)"
+        "desc": "Operação de redução a ser aplicada (por exemplo, MPI_SUM, MPI_MAX, MPI_MIN, MPI_PROD). Deve ser a mesma em todos os processos (handle)."
       },
       {
         "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Comunicador que contém o grupo de processos participantes (handle)."
       }
     ],
-    "description": "Realiza uma redução nos dados e, em seguida, divide o resultado em partes que são espalhadas entre os processos participantes.",
-    "application": "Algoritmos de álgebra linear paralela onde resultados parciais de reduções são necessários em diferentes processos.",
-    "example": "// Declarações\nint sendbuf[] = {1, 2, 3, 4};\nint recvbuf = 0;\nint recvcounts[] = {1, 1};\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nMPI_Comm comm = MPI_COMM_WORLD;\n\n// Reduz e distribui os blocos resultantes entre os processos\nint err = MPI_Reduce_scatter(sendbuf, &recvbuf, recvcounts, datatype, op, comm);"
-  },
+    "description": "MPI_Reduce_scatter combina uma operação de redução (como MPI_SUM) com um scatter de bloco variável. Primeiro, realiza uma redução global nos buffers de envio de todos os processos, produzindo um vetor resultado. Em seguida, distribui esse vetor resultado entre os processos de acordo com as contagens especificadas em recvcounts. O processo i recebe recvcounts[i] elementos. Equivale funcionalmente a um MPI_Reduce seguido de MPI_Scatterv, mas possui implementação potencialmente mais otimizada.",
+    "application": "Algoritmos de álgebra linear paralela onde resultados parciais de reduções são necessários em diferentes processos, como na multiplicação de matrizes paralela (reduce-scatter seguido de allgather forma o allreduce). Também utilizado em simulações de dinâmica molecular para computar forças parciais e distribuí-las entre os nós.",
+    "example": "// Declarações\nint rank, size;\nint sendbuf[4] = {1, 2, 3, 4}; // Buffer de envio com 4 elementos (total)\nint recvbuf;                     // Buffer de recebimento (recvcounts[rank] = 1)\nint recvcounts[2] = {1, 1};      // Cada processo recebe 1 elemento\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Exemplo: assume 2 processos (size=2)\n// sendbuf[4] = {1, 2, 3, 4} em ambos os processos\n// Redução: P0 e P1 enviam sendbuf, resultado reduzido = {1+1, 2+2, 3+3, 4+4} = {2, 4, 6, 8}\n// Scatter: P0 recebe {2}, P1 recebe {4}\nerr = MPI_Reduce_scatter(sendbuf, &recvbuf, recvcounts, datatype, op, MPI_COMM_WORLD);\n\nif (err == MPI_SUCCESS) {\n    // P0 tem recvbuf = 2 (soma de 1+1)\n    // P1 tem recvbuf = 4 (soma de 2+2)\n    // printf(\"Processo %d recebeu: %d\\n\", rank, recvbuf);\n}\n\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Reduce_scatter_block",
     "short_desc": "Combina valores e distribui os resultados em blocos de tamanho igual.",
@@ -7963,33 +7967,33 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço inicial do buffer de envio (entrada)"
+        "desc": "Endereço inicial do buffer de envio contendo os valores que serão combinados pela operação de redução. O buffer deve conter size * recvcount elementos do tipo datatype (ponteiro de entrada)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço inicial do buffer de recebimento (saída)"
+        "desc": "Endereço inicial do buffer de recebimento que armazenará o bloco de recvcount elementos do resultado reduzido destinado a este processo (ponteiro de saída)."
       },
       {
         "name": "recvcount",
-        "desc": "número de elementos por bloco (inteiro não negativo)"
+        "desc": "Número de elementos que cada processo receberá como resultado da operação. O buffer de envio deve conter size * recvcount elementos (inteiro não negativo)."
       },
       {
         "name": "datatype",
-        "desc": "tipo de dado dos elementos (handle)"
+        "desc": "Tipo de dados dos elementos nos buffers de envio e recebimento (handle)."
       },
       {
         "name": "op",
-        "desc": "operação (handle)"
+        "desc": "Operação de redução a ser aplicada (por exemplo, MPI_SUM, MPI_MAX, MPI_MIN). Deve ser a mesma em todos os processos (handle)."
       },
       {
         "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Comunicador que contém o grupo de processos participantes (handle)."
       }
     ],
-    "description": "Variante do Reduce-Scatter onde cada processo recebe um bloco do mesmo tamanho do resultado reduzido.",
-    "application": "Simplificação de operações de redução e distribuição quando os dados são uniformes.",
-    "example": "// Declarações\nint sendbuf[] = {10, 20};\nint recvbuf = 0;\nint recvcount = 1;\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nMPI_Comm comm = MPI_COMM_WORLD;\n\n// Reduz e distribui um bloco de tamanho fixo para cada processo\nint err = MPI_Reduce_scatter_block(sendbuf, &recvbuf, recvcount, datatype, op, comm);"
-  },
+    "description": "MPI_Reduce_scatter_block é uma variante simplificada de MPI_Reduce_scatter onde cada processo recebe exatamente recvcount elementos do resultado reduzido. Primeiro realiza uma redução nos buffers de envio de todos os processos e depois distribui os blocos resultantes de tamanho igual para cada processo. Equivale a MPI_Reduce_scatter com recvcounts[i] = recvcount para todo i.",
+    "application": "Indicado para operações de redução uniforme seguidas de distribuição equilibrada, como em algoritmos de transformada rápida de Fourier (FFT) paralela e processamento de sinais onde cada nó deve receber a mesma quantidade de dados resultantes.",
+    "example": "// Declarações\nint rank, size;\nint sendbuf[4] = {10, 20, 30, 40}; // size * recvcount = size * 2\nint recvbuf[2];                      // recvcount = 2\nint recvcount = 2;\nMPI_Datatype datatype = MPI_INT;\nMPI_Op op = MPI_SUM;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Exemplo: assume 2 processos (size=2)\n// Ambos enviam sendbuf[4] = {10, 20, 30, 40}\n// Redução por MPI_SUM: resultado = {10+10, 20+20, 30+30, 40+40} = {20, 40, 60, 80}\n// Scatter: P0 recebe {20, 40}, P1 recebe {60, 80}\nerr = MPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, MPI_COMM_WORLD);\n\nif (err == MPI_SUCCESS) {\n    // printf(\"Processo %d recebeu: %d, %d\\n\", rank, recvbuf[0], recvbuf[1]);\n}\n\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Register_datarep",
     "short_desc": "Registra funções para representações de dados definidas pelo usuário.",
@@ -8351,41 +8355,41 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço do buffer de envio (entrada, apenas na raiz)"
+        "desc": "Endereço inicial do buffer de envio no processo raiz. Cada segmento de sendcount elementos será enviado a um processo destino. Significativo apenas na raiz (ponteiro)."
       },
       {
         "name": "sendcount",
-        "desc": "número de elementos enviados para cada processo (inteiro não negativo)"
+        "desc": "Número de elementos consecutivos do tipo sendtype a serem enviados do buffer de envio para CADA processo individual. O buffer total na raiz deve conter ao menos sendcount * size elementos (inteiro não negativo)."
       },
       {
         "name": "sendtype",
-        "desc": "tipo de dado de envio (handle)"
+        "desc": "Tipo de dados dos elementos que compõem o buffer de envio (handle)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço do buffer de recebimento (saída)"
+        "desc": "Endereço inicial do buffer de recebimento onde serão armazenados os dados recebidos do processo raiz. Deve ter espaço para recvcount elementos do tipo recvtype (ponteiro de saída)."
       },
       {
         "name": "recvcount",
-        "desc": "número de elementos no buffer de recebimento (inteiro não negativo)"
+        "desc": "Número de elementos a serem recebidos pelo processo destino. Deve ser igual a sendcount (tipicamente) (inteiro não negativo)."
       },
       {
         "name": "recvtype",
-        "desc": "tipo de dado de recebimento (handle)"
+        "desc": "Tipo de dados dos elementos do buffer de recepção. Deve corresponder a sendtype (handle)."
       },
       {
         "name": "root",
-        "desc": "rank do processo que envia (inteiro)"
+        "desc": "Rank do processo que distribuirá os dados para todos os demais processos no comunicador (inteiro)."
       },
       {
         "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Comunicador que contém o grupo de processos participantes da operação (handle)."
       }
     ],
-    "description": "Divide um buffer no processo raiz em partes iguais e as distribui para todos os processos no comunicador.",
-    "application": "Distribuição uniforme de dados iniciais para processamento paralelo.",
-    "example": "// Declarações\nint sendbuf[4] = {1, 2, 3, 4};\nint recvbuf = 0;\nint root = 0;\n\n// Distribui 1 elemento para cada processo\nint err = MPI_Scatter(sendbuf, 1, MPI_INT, &recvbuf, 1, MPI_INT, root, MPI_COMM_WORLD);\n\nif (err == MPI_SUCCESS) {\n    // Cada processo recebeu sua parte\n}"
-  },
+    "description": "MPI_Scatter é uma operação coletiva bloqueante que distribui porções iguais de dados do processo raiz para todos os processos do comunicador. O processo raiz particiona seu buffer de envio em size segmentos (onde size é o número de processos) de sendcount elementos cada e envia o i-ésimo segmento ao processo de rank i. Todos os processos no comunicador, incluindo a raiz, devem chamar MPI_Scatter com os mesmos argumentos sendcount, sendtype, recvcount, recvtype, root e comm. O processo raiz também recebe sua própria parte do buffer, copiada internamente de seu sendbuf para seu recvbuf.",
+    "application": "Distribuição uniforme de dados iniciais de um processo mestre para todos os processos trabalhadores, como carregar uma matriz global e distribuir suas linhas igualmente entre os nós de processamento. Também utilizado em pipelines de computação paralela onde o nó coordenador distribui cargas de trabalho simétricas a cada iteração.",
+    "example": "// Declarações\nint rank, size;\nint *sendbuf = NULL; // Buffer de envio (apenas na raiz)\nint recvbuf;         // Buffer de recepção individual\nint root = 0;        // Processo raiz que distribuirá os dados\nint err;\n\n// Inicializa o ambiente MPI e obtém rank e tamanho do comunicador\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// O processo raiz aloca e inicializa o buffer de dados com size elementos\nif (rank == root) {\n    sendbuf = (int *)malloc(size * sizeof(int));\n    for (int i = 0; i < size; i++) {\n        sendbuf[i] = (i + 1) * 10; // sendbuf = {10, 20, 30, ...}\n    }\n}\n\n// Cada processo receberá exatamente 1 inteiro\nint sendcount = 1;\nint recvcount = 1;\n\n// Todos os processos participam do Scatter coletivo\n// A raiz distribui sendbuf[i] para o processo de rank i\n// O processo raiz também recebe sua parte (sendbuf[0] -> recvbuf)\nerr = MPI_Scatter(sendbuf, sendcount, MPI_INT,\n                  &recvbuf, recvcount, MPI_INT,\n                  root, MPI_COMM_WORLD);\n\nif (err == MPI_SUCCESS) {\n    // Cada processo agora possui seu dado individual em recvbuf\n    // Exemplo com size=4: P0 recebe 10, P1 recebe 20, P2 recebe 30, P3 recebe 40\n    // printf(\"Processo %d recebeu: %d\\n\", rank, recvbuf);\n}\n\n// Libera o buffer alocado na raiz\nif (rank == root && sendbuf != NULL) {\n    free(sendbuf);\n}\n\n// Finaliza o ambiente MPI\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Scatterv",
     "short_desc": "Espalha um buffer em partes variadas para todos os processos em um comunicador.",
@@ -8393,45 +8397,45 @@
     "params": [
       {
         "name": "sendbuf",
-        "desc": "endereço do buffer de envio (entrada, apenas na raiz)"
+        "desc": "Endereço inicial do buffer de envio no processo raiz. Os dados a enviar são selecionados com base em sendcounts e displs. Significativo apenas na raiz (ponteiro)."
       },
       {
         "name": "sendcounts",
-        "desc": "array especificando o número de elementos para enviar a cada rank"
+        "desc": "Array de inteiros com size elementos, onde sendcounts[i] especifica o número de elementos a enviar para o processo de rank i. Array significativo apenas na raiz."
       },
       {
         "name": "displs",
-        "desc": "array de deslocamentos relativos ao buffer de envio"
+        "desc": "Array de inteiros com size elementos, onde displs[i] especifica o deslocamento (em número de elementos, NÃO em bytes) dentro de sendbuf a partir do qual os dados do processo i são extraídos. Array significativo apenas na raiz."
       },
       {
         "name": "sendtype",
-        "desc": "tipo de dado de envio (handle)"
+        "desc": "Tipo de dados dos elementos no buffer de envio (handle)."
       },
       {
         "name": "recvbuf",
-        "desc": "endereço do buffer de recebimento (saída)"
+        "desc": "Endereço inicial do buffer de recebimento onde serão armazenados os dados recebidos do processo raiz (ponteiro de saída)."
       },
       {
         "name": "recvcount",
-        "desc": "número de elementos no buffer de recebimento (inteiro não negativo)"
+        "desc": "Número de elementos a serem recebidos pelo processo destino. Deve corresponder a sendcounts[rank] (inteiro não negativo)."
       },
       {
         "name": "recvtype",
-        "desc": "tipo de dado de recebimento (handle)"
+        "desc": "Tipo de dados dos elementos no buffer de recepção. Deve corresponder a sendtype (handle)."
       },
       {
         "name": "root",
-        "desc": "rank do processo que envia (inteiro)"
+        "desc": "Rank do processo que distribuirá os dados para todos os demais processos no comunicador (inteiro)."
       },
       {
         "name": "comm",
-        "desc": "comunicador (handle)"
+        "desc": "Comunicador que contém o grupo de processos participantes da operação (handle)."
       }
     ],
-    "description": "Versão flexível do Scatter que permite enviar quantidades diferentes de dados para cada processo.",
-    "application": "Distribuição de cargas de trabalho desequilibradas entre processos.",
-    "example": "// Declarações\nint sendbuf[4] = {1, 2, 3, 4};\nint sendcounts[2] = {1, 3};\nint displs[2] = {0, 1};\nint recvbuf[3];\nint recvcount = 3;\nint root = 0;\n\n// Scatter variável para diferentes tamanhos\nint err = MPI_Scatterv(sendbuf, sendcounts, displs, MPI_INT, recvbuf, recvcount, MPI_INT, root, MPI_COMM_WORLD);\n\nif (err == MPI_SUCCESS) {\n    // Dados distribuídos de forma desigual\n}"
-  },
+    "description": "MPI_Scatterv é a versão generalizada de MPI_Scatter que permite distribuir quantidades variáveis de dados a cada processo. O processo raiz utiliza os arrays sendcounts e displs para especificar, respectivamente, quantos elementos cada processo receberá e a posição de início de cada segmento dentro do buffer de envio. Diferentemente do Scatter clássico, onde todos recebem o mesmo número de elementos, o Scatterv acomoda distribuições irregulares. Todos os processos no comunicador devem chamar MPI_Scatterv com os mesmos argumentos sendcounts, displs, sendtype, recvcount, recvtype, root e comm.",
+    "application": "Distribuição de cargas de trabalho desequilibradas entre processos, como partição de uma malha de elementos finitos onde diferentes subdomínios contêm quantidades distintas de células. Também utilizado em balanceamento de carga dinâmico onde cada nó recebe uma fatia de tamanho proporcional à sua capacidade computacional.",
+    "example": "// Declarações\nint rank, size;\nint *sendbuf = NULL;          // Buffer de envio na raiz\nint *recvbuf = NULL;          // Buffer de recepção individual\nint *sendcounts = NULL;       // Contagens para cada processo\nint *displs = NULL;           // Deslocamentos para cada processo\nint root = 0;\nint err;\n\n// Inicializa MPI e obtém rank e tamanho\nerr = MPI_Init(NULL, NULL);\nerr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);\nerr = MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n// Apenas a raiz prepara sendcounts, displs e sendbuf\nif (rank == root) {\n    sendcounts = (int *)malloc(size * sizeof(int));\n    displs = (int *)malloc(size * sizeof(int));\n\n    // Exemplo: P0 recebe 2, P1 recebe 4, P2 recebe 1, ...\n    int total = 0;\n    for (int i = 0; i < size; i++) {\n        sendcounts[i] = (i % 3) + 1; // Tamanhos variados: 1, 2 ou 3\n        displs[i] = total;\n        total += sendcounts[i];\n    }\n\n    sendbuf = (int *)malloc(total * sizeof(int));\n    for (int i = 0; i < total; i++) {\n        sendbuf[i] = (i + 1) * 10; // sendbuf = {10, 20, 30, ...}\n    }\n}\n\n// Cada processo descobre quantos elementos receberá\nint recvcount = (rank == root) ? sendcounts[rank] : 0;\n// Em um programa real, difundiria sendcounts[rank] para todos\n// Alternativa: MPI_Scatter os sendcounts primeiro\nint my_count = 1; // Placeholder - na prática use um MPI_Scatter de sendcounts\n\n// Para simplicidade, supomos que cada processo conhece seu recvcount\n// (em código real, use MPI_Scatter para distribuir sendcounts)\n\nrecvbuf = (int *)malloc(my_count * sizeof(int));\n\n// Todos os processos participam do Scatterv\nerr = MPI_Scatterv(sendbuf, sendcounts, displs, MPI_INT,\n                   recvbuf, my_count, MPI_INT,\n                   root, MPI_COMM_WORLD);\n\nif (err == MPI_SUCCESS) {\n    // Cada processo recebeu sua porção individual em recvbuf\n    // printf(\"Processo %d recebeu %d elementos\\n\", rank, my_count);\n    // for (int i = 0; i < my_count; i++) {\n    //     printf(\"  recvbuf[%d] = %d\\n\", i, recvbuf[i]);\n    // }\n}\n\n// Libera buffers\nif (rank == root) {\n    free(sendbuf); free(sendcounts); free(displs);\n}\nfree(recvbuf);\n\nMPI_Finalize();"
+    },
   {
     "name": "MPI_Send",
     "short_desc": "Realiza um envio bloqueante",
